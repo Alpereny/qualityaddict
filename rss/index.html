@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?><rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0" xmlns:media="http://search.yahoo.com/mrss/"><channel><title><![CDATA[Quality Addict]]></title><description><![CDATA[Thoughts, stories and ideas.]]></description><link>http://localhost:2368/</link><image><url>http://localhost:2368/favicon.png</url><title>Quality Addict</title><link>http://localhost:2368/</link></image><generator>Ghost 5.47</generator><lastBuildDate>Wed, 21 Feb 2024 23:59:34 GMT</lastBuildDate><atom:link href="http://localhost:2368/rss/" rel="self" type="application/rss+xml"/><ttl>60</ttl><item><title><![CDATA[How to change the admin password of your local Ghost Blog setup]]></title><description><![CDATA[<p>It&apos;s been almost two years since I purchased the domain qualityaddict.com and set up a Ghost blogging platform on my local machine. During this time, I&apos;ve drafted several blog posts, but I didn&apos;t feel they are ready for publication, so I put off</p>]]></description><link>http://localhost:2368/how-to-reset/</link><guid isPermaLink="false">65d67aefef91bb0f6189115f</guid><dc:creator><![CDATA[Quality Addict]]></dc:creator><pubDate>Wed, 21 Feb 2024 23:41:00 GMT</pubDate><content:encoded><![CDATA[<p>It&apos;s been almost two years since I purchased the domain qualityaddict.com and set up a Ghost blogging platform on my local machine. During this time, I&apos;ve drafted several blog posts, but I didn&apos;t feel they are ready for publication, so I put off on launching my website until now.</p><p>However, today was the day I finally decided to publish QualityAddict.com. Excitedly, I attempted to log in to the local admin dashboard, only to hit a major roadblock&#x2014;I couldn&apos;t remember my password! Despite trying every possible combination, I couldn&apos;t sign into the dashboard. Of course, I hadn&apos;t configured an SMTP server for my local setup, which meant I couldn&apos;t utilize the forgot password flow.</p><p>There was only one option left: updating the password directly from the database! Let me explain step by step so if I forget again in the future I would be able to reset it quickly!</p><p>Download the password.js file from their repository: <a href="https://github.com/TryGhost/Utils/blob/main/packages/security/lib/password.js?ref=localhost">https://github.com/TryGhost/Utils/blob/main/packages/security/lib/password.js</a></p><p>Fortunately, they don&apos;t store passwords as plain teTherefore, we need to hash the new password string just as they do. Their code look like as below, but it&apos;s crucial to ensure that you&apos;re using the most updated version.</p><pre><code class="language-javascript">const Promise = require(&apos;bluebird&apos;);
+
+module.exports.hash = function hash(plainPassword) {
+    const bcrypt = require(&apos;bcryptjs&apos;);
+    const bcryptGenSalt = Promise.promisify(bcrypt.genSalt);
+    const bcryptHash = Promise.promisify(bcrypt.hash);
+
+    return bcryptGenSalt().then(function (salt) {
+        return bcryptHash(plainPassword, salt);
+    });
+};
+
+module.exports.compare = function compare(plainPassword, hashedPassword) {
+    const bcrypt = require(&apos;bcryptjs&apos;);
+    const bcryptCompare = Promise.promisify(bcrypt.compare);
+
+    return bcryptCompare(plainPassword, hashedPassword);
+};</code></pre><p>Currently, we need to install the following dependencies to run the code above:</p><pre><code class="language-bash">npm install bluebird
+npm install bcryptjs</code></pre><p>Then create a file named <strong>generatePassword.js</strong></p><pre><code class="language-javascript">require(&apos;./password&apos;).hash(process.argv[2]).then(console.log);</code></pre><blockquote><strong>Password.js</strong> and <strong>generatePassword.js</strong> should be located in the same directory.</blockquote><p>We can hash strings right now, for example:</p><pre><code class="language-bash">node generatePassword.js &quot;test123&quot;</code></pre><p>You will see the hashed version of the string in the console.</p><p>We need to replace the password field with the new one in the database record, but the question arises: where is the database located?</p><p>Let&apos;s check the <strong>config.development.json </strong>file:</p><pre><code class="language-javascript">  &quot;database&quot;: {
+    &quot;client&quot;: &quot;sqlite3&quot;,
+    &quot;connection&quot;: {
+      &quot;filename&quot;: &quot;/home/..../ghost-local.db&quot;
+    }
+  }</code></pre><p>As you can see, it uses a local database solution named sqlite3 and we can easily connect it:</p><pre><code class="language-bash">sqlite3 /home/..../ghost-local.db</code></pre><p>Finally, we can replace the password by running the following query:</p><pre><code class="language-bash">UPDATE users
+  SET
+    password = &apos;NEW_PASSWORD_HASH&apos;
+  WHERE id = 1;</code></pre><p>So we can sign into the dasboard with your new password!</p>]]></content:encoded></item></channel></rss>
